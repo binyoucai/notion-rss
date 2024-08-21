@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/jomei/notionapi"
 	"testing"
 )
 
@@ -73,4 +75,38 @@ func TestPanicOnErrors(t *testing.T) {
 	}
 	// Separate out expected error messages from rest of testing output
 	fmt.Printf("End of expected errors\n\n")
+}
+
+
+
+func TestGetId(t *testing.T) {
+	// 初始化 Notion API 客户端
+	client := notionapi.NewClient("secret_lhcbDQlvdkrnQGgvhUJDNHHq6L4ZNLMm0FrQ7esUb29")
+	// 查询数据库
+	req := &notionapi.DatabaseQueryRequest{
+	}
+	resp, err := client.Database.Query(context.Background(), "4bdd2bbedb6f4d4caceeee2cef60e780", req)
+	if err != nil {
+		return
+	}
+
+	// 遍历结果并打印 hash 列的值
+	for _, result := range resp.Results {
+		if hashProperty, ok := result.Properties["hash"]; ok {
+			// 假设 hash 是一个文本类型的属性
+			//fmt.Printf("res:%#v",result)
+
+			if hashValue, ok := hashProperty.(*notionapi.RichTextProperty); ok {
+				for _, text := range hashValue.RichText {
+					fmt.Println(text.Text.Content)
+				}
+			}
+		}
+
+		if fromProperty, ok := result.Properties["From"]; ok {
+			if from, ok := fromProperty.(*notionapi.SelectProperty); ok {
+				fmt.Println(from.Select.Name)
+			}
+		}
+	}
 }

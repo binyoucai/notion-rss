@@ -2,7 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -12,10 +18,12 @@ import (
 	"github.com/jomei/notionapi"
 )
 
+
 type NotionDao struct {
 	feedDatabaseId    notionapi.DatabaseID
 	contentDatabaseId notionapi.DatabaseID
 	client            *notionapi.Client
+	globalHash map[string]string
 }
 
 // ConstructNotionDaoFromEnv given environment variables: NOTION_RSS_KEY,
@@ -205,6 +213,34 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 			},
 		}
 	}
+	// 定义要拼接的字符串
+	stringsToConcat := []string{item.title,item.link.String(), item.published.String()}
+	// 使用 strings.Join 进行字符串拼接
+	concatenatedString := strings.Join(stringsToConcat, "")
+	// 计算 md5 哈希值
+	hasher := md5.New()
+	hasher.Write([]byte(concatenatedString))
+	hash := hex.EncodeToString(hasher.Sum(nil))
+	// 检查元素是否在集合中
+	if _, exists := dao.globalHash[hash]; exists {
+		fmt.Printf("%s 在订阅列表里面了，且文章没有更新 hash:%s\n", item.link.String(),hash)
+		return nil
+	}
+	// 去掉html
+	description := removeHtmlAndGarbage(*item.description)
+
+	// 创建URL 预览块
+	children := []notionapi.Block{
+		notionapi.EmbedBlock{
+			BasicBlock: notionapi.BasicBlock{
+				Object: notionapi.ObjectTypeBlock,
+				Type:   notionapi.BlockTypeEmbed,
+			},
+			Embed: notionapi.Embed{
+				URL: item.link.String(),
+			},
+		},
+	}
 
 	_, err := dao.client.Page.Create(context.Background(), &notionapi.PageCreateRequest{
 		Parent: notionapi.Parent{
@@ -226,9 +262,9 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 				RichText: []notionapi.RichText{{
 					Type: notionapi.ObjectTypeText,
 					Text: notionapi.Text{
-						Content: *item.description,
+						Content: description,
 					},
-					PlainText: *item.description,
+					PlainText: description,
 				},
 				},
 			},
@@ -241,8 +277,19 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 			},
 			"From":      notionapi.SelectProperty{Select: notionapi.Option{Name: item.feedName}},
 			"Published": notionapi.DateProperty{Date: &notionapi.DateObject{Start: (*notionapi.Date)(item.published)}},
+			"hash": notionapi.RichTextProperty{
+				Type: "rich_text",
+				RichText: []notionapi.RichText{{
+					Type: notionapi.ObjectTypeText,
+					Text: notionapi.Text{
+						Content: hash,
+					},
+					PlainText: hash,
+				},
+				},
+			},
 		},
-		Children: RssContentToBlocks(item),
+		Children: children,
 		Cover:    imageProp,
 	})
 	return err
@@ -251,4 +298,68 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 func RssContentToBlocks(item RssItem) []notionapi.Block {
 	// TODO: implement when we know RssItem struct better
 	return []notionapi.Block{}
+}
+
+func GetJinaAI(url string) (*JinaAIRes,error){
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://r.jina.ai/%s",url), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var response *JinaAIRes
+	if err = json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+type JinaAIRes struct {
+	Code   int `json:"code"`
+	Status int `json:"status"`
+	Data   struct {
+		Title         string    `json:"title"`
+		URL           string    `json:"url"`
+		Content       string    `json:"content"`
+		PublishedTime time.Time `json:"publishedTime"`
+		Usage         struct {
+			Tokens int `json:"tokens"`
+		} `json:"usage"`
+	} `json:"data"`
+}
+
+
+// splitText 将长文本分割为多个部分
+func splitText(text string, maxLength int) []string {
+	var parts []string
+	for len(text) > maxLength {
+		parts = append(parts, text[:maxLength])
+		text = text[maxLength:]
+	}
+	parts = append(parts, text)
+	return parts
+}
+
+func removeHtmlAndGarbage(input string) string {
+	// 正则表达式匹配 HTML 标签
+	re := regexp.MustCompile(`<[^>]*>`)
+	cleaned := re.ReplaceAllString(input, "")
+
+	// 去除多余的空格和乱码字符
+	cleaned = strings.ReplaceAll(cleaned, "\n", " ")
+	cleaned = strings.ReplaceAll(cleaned, "\r", "")
+	regex := regexp.MustCompile(`&#[0-9A-F]+;`)
+
+	cleaned = strings.TrimSpace(cleaned)
+	cleaned = regex.ReplaceAllString(cleaned, "")
+	return cleaned
 }

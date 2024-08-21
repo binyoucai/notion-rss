@@ -16,6 +16,7 @@ type RssItem struct {
 	feedName    string
 	published   *time.Time
 	description *string
+	hash string
 }
 
 type FeedDatabaseItem struct {
