@@ -18,12 +18,11 @@ import (
 	"github.com/jomei/notionapi"
 )
 
-
 type NotionDao struct {
 	feedDatabaseId    notionapi.DatabaseID
 	contentDatabaseId notionapi.DatabaseID
 	client            *notionapi.Client
-	globalHash map[string]string
+	globalHash        map[string]string
 }
 
 // ConstructNotionDaoFromEnv given environment variables: NOTION_RSS_KEY,
@@ -214,7 +213,7 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 		}
 	}
 	// 定义要拼接的字符串
-	stringsToConcat := []string{item.title,item.link.String(), item.published.String()}
+	stringsToConcat := []string{item.title, item.link.String(), item.published.String()}
 	// 使用 strings.Join 进行字符串拼接
 	concatenatedString := strings.Join(stringsToConcat, "")
 	// 计算 md5 哈希值
@@ -223,7 +222,7 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	// 检查元素是否在集合中
 	if _, exists := dao.globalHash[hash]; exists {
-		fmt.Printf("%s 在订阅列表里面了，且文章没有更新 hash:%s\n", item.link.String(),hash)
+		fmt.Printf("%s 在订阅列表里面了，且文章没有更新 hash:%s\n", item.link.String(), hash)
 		return nil
 	}
 	// 去掉html
@@ -300,9 +299,9 @@ func RssContentToBlocks(item RssItem) []notionapi.Block {
 	return []notionapi.Block{}
 }
 
-func GetJinaAI(url string) (*JinaAIRes,error){
+func GetJinaAI(url string) (*JinaAIRes, error) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://r.jina.ai/%s",url), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://r.jina.ai/%s", url), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -337,7 +336,6 @@ type JinaAIRes struct {
 	} `json:"data"`
 }
 
-
 // splitText 将长文本分割为多个部分
 func splitText(text string, maxLength int) []string {
 	var parts []string
@@ -357,7 +355,7 @@ func removeHtmlAndGarbage(input string) string {
 	// 去除多余的空格和乱码字符
 	cleaned = strings.ReplaceAll(cleaned, "\n", " ")
 	cleaned = strings.ReplaceAll(cleaned, "\r", "")
-	regex := regexp.MustCompile(`&#[0-9A-F]+;`)
+	regex := regexp.MustCompile(`&#.[0-9A-F]+;`)
 
 	cleaned = strings.TrimSpace(cleaned)
 	cleaned = regex.ReplaceAllString(cleaned, "")
