@@ -240,6 +240,7 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 			},
 		},
 	}
+	descriptionList := splitText(description, 2000)
 
 	_, err := dao.client.Page.Create(context.Background(), &notionapi.PageCreateRequest{
 		Parent: notionapi.Parent{
@@ -261,9 +262,9 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 				RichText: []notionapi.RichText{{
 					Type: notionapi.ObjectTypeText,
 					Text: notionapi.Text{
-						Content: description,
+						Content: descriptionList[0],
 					},
-					PlainText: description,
+					PlainText: descriptionList[0],
 				},
 				},
 			},
