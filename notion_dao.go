@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -189,6 +190,13 @@ func GetImageUrl(x string) *string {
 
 // AddRssItem to Notion database as a single new page with Block content. On failure, no retry is attempted.
 func (dao NotionDao) AddRssItem(item RssItem) error {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("panic recover!")
+			fmt.Printf("err=%v, stack=%s\n", err, string(debug.Stack()))
+		}
+	}()
+
 	categories := make([]notionapi.Option, len(item.categories))
 	for i, c := range item.categories {
 		categories[i] = notionapi.Option{

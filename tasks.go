@@ -49,22 +49,39 @@ func AddNewContent(nDao *NotionDao) error {
 }
 
 func GetHashMap(nDao *NotionDao) error {
-	// 查询数据库
-	req := &notionapi.DatabaseQueryRequest{
-	}
-	resp, err := nDao.client.Database.Query(context.Background(), nDao.contentDatabaseId, req)
-	if err != nil {
-		return err
-	}
-	// 遍历结果并打印 hash 列的值
-	for _, result := range resp.Results {
-		if hashProperty, ok := result.Properties["hash"]; ok {
-			if hashValue, ok := hashProperty.(*notionapi.RichTextProperty); ok {
-				for _, text := range hashValue.RichText {
-					nDao.globalHash[text.Text.Content]=text.Text.Content
+	var cursor notionapi.Cursor
+
+	for {
+		req := &notionapi.DatabaseQueryRequest{
+			PageSize: 100, // 每页100条
+			StartCursor: cursor,
+		}
+
+		resp, err := nDao.client.Database.Query(context.Background(), nDao.contentDatabaseId, req)
+		if err != nil {
+			return err
+		}
+
+		// 处理当前页的数据
+		for _, result := range resp.Results {
+			if hashProperty, ok := result.Properties["hash"]; ok {
+				if hashValue, ok := hashProperty.(*notionapi.RichTextProperty); ok {
+					for _, text := range hashValue.RichText {
+						nDao.globalHash[text.Text.Content] = text.Text.Content
+					}
 				}
 			}
 		}
+
+		// 检查是否还有下一页
+		if !resp.HasMore {
+			break
+		}
+
+		// 更新游标，准备查询下一页
+		cursor = resp.NextCursor
 	}
+
+	fmt.Printf("文章总数量为:%v\n", len(nDao.globalHash))
 	return nil
 }
