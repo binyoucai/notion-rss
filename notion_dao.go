@@ -213,7 +213,7 @@ func (dao NotionDao) AddRssItem(item RssItem) error {
 		}
 	}
 	// 定义要拼接的字符串
-	stringsToConcat := []string{item.title, item.link.String(), item.published.String()}
+	stringsToConcat := []string{item.title, item.link.String()}
 	// 使用 strings.Join 进行字符串拼接
 	concatenatedString := strings.Join(stringsToConcat, "")
 	// 计算 md5 哈希值
