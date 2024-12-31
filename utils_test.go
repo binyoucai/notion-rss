@@ -81,7 +81,7 @@ func TestPanicOnErrors(t *testing.T) {
 
 func TestGetId(t *testing.T) {
 	// 初始化 Notion API 客户端
-	client := notionapi.NewClient("secret_lhcbDQlvdkrnQGgvhUJDNHHq6L4ZNLMm0FrQ7esUb29")
+	client := notionapi.NewClient("")
 	// 查询数据库
 	req := &notionapi.DatabaseQueryRequest{
 	}
